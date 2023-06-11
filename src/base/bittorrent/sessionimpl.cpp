@@ -2009,9 +2009,12 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
     endpoints << (u"192.168.1.7" + portString);
     endpoints << (u"192.168.0.10" + portString);
     endpoints << ((u'[' + u"::" + u']') + portString);
-    outgoingInterfaces << u"192.168.0.10";
-    outgoingInterfaces << u"192.168.1.7";
-    outgoingInterfaces << u"::";
+    outgoingInterfaces << QString::fromUtf8("192.168.0.10");
+    outgoingInterfaces << QString::fromUtf8("192.168.1.7");
+    outgoingInterfaces << QString::fromUtf8("::");
+    // outgoingInterfaces << (u"192.168.0.10");
+    // outgoingInterfaces << (u"192.168.1.7");
+    // outgoingInterfaces << (u"::");
     const QString finalEndpoints = endpoints.join(u',');
     if(ManualIPList.toStdString() == "")
     {
