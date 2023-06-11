@@ -2008,7 +2008,7 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
 //     }
     endpoints << (u"192.168.1.7" + portString);
     endpoints << (u"192.168.0.10" + portString);
-    endpoints << ((u'[' + u':' + u':' + u']') + portString);
+    endpoints << (u"[::]" + portString);
     outgoingInterfaces << QString::fromUtf8("192.168.0.10");
     outgoingInterfaces << QString::fromUtf8("192.168.1.7");
     outgoingInterfaces << QString::fromUtf8("::");
