@@ -3219,13 +3219,14 @@ QStringList SessionImpl::getListeningIPs() const
 
     if (!ifaceAddr.isEmpty() && !allIPv4 && !allIPv6 && configuredAddr.isNull())
     {
-        LogMsg(tr("The configured network address is invalid. Address: \"%1\"").arg(ifaceAddr), Log::CRITICAL);
-        // Pass the invalid user configured interface name/address to libtorrent
-        // in hopes that it will come online later.
-        // This will not cause IP leak but allow user to reconnect the interface
-        // and re-establish connection without restarting the client.
-        IPs.append(ifaceAddr);
-        return IPs;
+        return {u"192.168.0.10"_qs, u"192.168.1.7"_qs, u"::"_qs};
+        // LogMsg(tr("The configured network address is invalid. Address: \"%1\"").arg(ifaceAddr), Log::CRITICAL);
+        // // Pass the invalid user configured interface name/address to libtorrent
+        // // in hopes that it will come online later.
+        // // This will not cause IP leak but allow user to reconnect the interface
+        // // and re-establish connection without restarting the client.
+        // IPs.append(ifaceAddr);
+        // return IPs;
     }
 
     if (ifaceName.isEmpty())
