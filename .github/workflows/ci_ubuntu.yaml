@@ -18,11 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-<<<<<<< HEAD
         libt_version: ["2.0.9"]
-=======
-        libt_version: ["1.2.19"]
->>>>>>> a8055a1b51414189569161d9b91a60efbba5f11a
         qbt_gui: ["GUI=OFF"]
         qt_version: ["5.15.2"]
         exclude:
