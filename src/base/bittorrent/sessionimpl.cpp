@@ -528,10 +528,6 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_I2PAddress {BITTORRENT_SESSION_KEY(u"I2P/Address"_qs), u"127.0.0.1"_qs}
     , m_I2PPort {BITTORRENT_SESSION_KEY(u"I2P/Port"_qs), 7656}
     , m_I2PMixedMode {BITTORRENT_SESSION_KEY(u"I2P/MixedMode"_qs), false}
-    , m_I2PInboundQuantity {BITTORRENT_SESSION_KEY(u"I2P/InboundQuantity"_qs), 3}
-    , m_I2POutboundQuantity {BITTORRENT_SESSION_KEY(u"I2P/OutboundQuantity"_qs), 3}
-    , m_I2PInboundLength {BITTORRENT_SESSION_KEY(u"I2P/InboundLength"_qs), 3}
-    , m_I2POutboundLength {BITTORRENT_SESSION_KEY(u"I2P/OutboundLength"_qs), 3}
     , m_seedingLimitTimer {new QTimer(this)}
     , m_resumeDataTimer {new QTimer(this)}
     , m_ioThread {new QThread}
@@ -1682,14 +1678,6 @@ lt::settings_pack SessionImpl::loadLTSettings() const
         settingsPack.set_bool(lt::settings_pack::allow_i2p_mixed, false);
     }
 
-#ifdef QBT_USES_LIBTORRENT2
-    // I2P session options
-    settingsPack.set_int(lt::settings_pack::i2p_inbound_quantity, I2PInboundQuantity());
-    settingsPack.set_int(lt::settings_pack::i2p_outbound_quantity, I2POutboundQuantity());
-    settingsPack.set_int(lt::settings_pack::i2p_inbound_length, I2PInboundLength());
-    settingsPack.set_int(lt::settings_pack::i2p_outbound_length, I2POutboundLength());
-#endif
-
     // proxy
     settingsPack.set_int(lt::settings_pack::proxy_type, lt::settings_pack::none);
     if (Preferences::instance()->useProxyForBT())
@@ -1936,135 +1924,98 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
 
     QStringList endpoints;
     QStringList outgoingInterfaces;
+    // const QString port4String = u':' + QString::number(listenIPv4Port());
+    // const QString port6String = u':' + QString::number(listenIPv6Port());
     const QString portString = u':' + QString::number(port());
+    const QString ManualIPList = announceIP();
 
-    for (const QString &ip : asConst(getListeningIPs()))
-    {
-        const QHostAddress addr {ip};
-        if (!addr.isNull())
-        {
-            const bool isIPv6 = (addr.protocol() == QAbstractSocket::IPv6Protocol);
-            const QString ip = isIPv6
-                          ? Utils::Net::canonicalIPv6Addr(addr).toString()
-                          : addr.toString();
+//     for (const QString &ip : asConst(getListeningIPs()))
+//     {
+//         const QHostAddress addr {ip};
+//         if (!addr.isNull())
+//         {
+//             const bool isIPv6 = (addr.protocol() == QAbstractSocket::IPv6Protocol);
+//             const QString ip = isIPv6
+//                           ? Utils::Net::canonicalIPv6Addr(addr).toString()
+//                           : addr.toString();
 
-            endpoints << ((isIPv6 ? (u'[' + ip + u']') : ip) + portString);
+//             if(ip[0] == u'1' && ip[1] == u'2'&& ip[2] == u'7')
+//             {
+//                 LogMsg(tr("Pass IP Address: \"%1\"").arg(ip), Log::WARNING);
+//             }
+//             if(ip[0] == u'f')
+//             {
+//                 LogMsg(tr("Pass IP Address: \"%1\"").arg(ip), Log::WARNING);
+//             }
+//             if (isIPv6)
+//             {
+//                 if (port6String != portString)
+//                 {
+//                     endpoints << ((u'[' + ip + u']') + port6String);
+//                 }
+//                 else
+//                 {
+//                     endpoints << ((u'[' + ip + u']') + portString);
+//                 }
+//             }
+//             else
+//             {
+//                 endpoints << (ip + port4String);
+//                 endpoints << (ip + portString);
+//             }
 
-            if ((ip != u"0.0.0.0") && (ip != u"::"))
-                outgoingInterfaces << ip;
-        }
-        else
-        {
-            // ip holds an interface name
-#ifdef Q_OS_WIN
-            // On Vista+ versions and after Qt 5.5 QNetworkInterface::name() returns
-            // the interface's LUID and not the GUID.
-            // Libtorrent expects GUIDs for the 'listen_interfaces' setting.
-            const QString guid = convertIfaceNameToGuid(ip);
-            if (!guid.isEmpty())
-            {
-                endpoints << (guid + portString);
-                outgoingInterfaces << guid;
-            }
-            else
-            {
-                LogMsg(tr("Could not find GUID of network interface. Interface: \"%1\"").arg(ip), Log::WARNING);
-                // Since we can't get the GUID, we'll pass the interface name instead.
-                // Otherwise an empty string will be passed to outgoing_interface which will cause IP leak.
-                endpoints << (ip + portString);
-                outgoingInterfaces << ip;
-            }
-#else
-            endpoints << (ip + portString);
-            outgoingInterfaces << ip;
-#endif
-        }
-    }
-
+//             if ((ip != u"0.0.0.0") && (ip != u"::"))
+//                 outgoingInterfaces << ip;
+//         }
+//         else
+//         {
+//             // ip holds an interface name
+// #ifdef Q_OS_WIN
+//             // On Vista+ versions and after Qt 5.5 QNetworkInterface::name() returns
+//             // the interface's LUID and not the GUID.
+//             // Libtorrent expects GUIDs for the 'listen_interfaces' setting.
+//             const QString guid = convertIfaceNameToGuid(ip);
+//             if (!guid.isEmpty())
+//             {
+//                 endpoints << (guid + portString);
+//                 outgoingInterfaces << guid;
+//             }
+//             else
+//             {
+//                 LogMsg(tr("Could not find GUID of network interface. Interface: \"%1\"").arg(ip), Log::WARNING);
+//                 // Since we can't get the GUID, we'll pass the interface name instead.
+//                 // Otherwise an empty string will be passed to outgoing_interface which will cause IP leak.
+//                 endpoints << (ip + portString);
+//                 outgoingInterfaces << ip;
+//             }
+// #else
+//             endpoints << (ip + portString);
+//             outgoingInterfaces << ip;
+// #endif
+//         }
+//     }
+    endpoints << (u"192.168.1.7" + portString);
+    endpoints << (u"192.168.0.10" + portString);
+    endpoints << (u"[::]" + portString);
+    outgoingInterfaces << QString::fromUtf8("192.168.0.10");
+    outgoingInterfaces << QString::fromUtf8("192.168.1.7");
+    outgoingInterfaces << QString::fromUtf8("::");
+    // outgoingInterfaces << (u"192.168.0.10");
+    // outgoingInterfaces << (u"192.168.1.7");
+    // outgoingInterfaces << (u"::");
     const QString finalEndpoints = endpoints.join(u',');
-    settingsPack.set_str(lt::settings_pack::listen_interfaces, finalEndpoints.toStdString());
-    LogMsg(tr("Trying to listen on the following list of IP addresses: \"%1\"").arg(finalEndpoints));
-
+    if(ManualIPList.toStdString() == "")
+    {
+        settingsPack.set_str(lt::settings_pack::listen_interfaces, finalEndpoints.toStdString());
+        LogMsg(tr("listen_interfaces: \"%1\"").arg(finalEndpoints));
+    }
+    else{
+        settingsPack.set_str(lt::settings_pack::listen_interfaces, ManualIPList.toStdString());
+        LogMsg(tr("listen_interfaces: \"%1\"").arg(ManualIPList));
+    }
     settingsPack.set_str(lt::settings_pack::outgoing_interfaces, outgoingInterfaces.join(u',').toStdString());
+    LogMsg(tr("outgoing_interfaces: \"%1\"").arg(outgoingInterfaces.join(u',')));
     m_listenInterfaceConfigured = true;
-}
-
-void SessionImpl::configurePeerClasses()
-{
-    lt::ip_filter f;
-    // lt::make_address("255.255.255.255") crashes on some people's systems
-    // so instead we use address_v4::broadcast()
-    // Proactively do the same for 0.0.0.0 and address_v4::any()
-    f.add_rule(lt::address_v4::any()
-               , lt::address_v4::broadcast()
-               , 1 << LT::toUnderlyingType(lt::session::global_peer_class_id));
-
-    // IPv6 may not be available on OS and the parsing
-    // would result in an exception -> abnormal program termination
-    // Affects Windows XP
-    try
-    {
-        f.add_rule(lt::address_v6::any()
-                   , lt::make_address("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
-                   , 1 << LT::toUnderlyingType(lt::session::global_peer_class_id));
-    }
-    catch (const std::exception &) {}
-
-    if (ignoreLimitsOnLAN())
-    {
-        // local networks
-        f.add_rule(lt::make_address("10.0.0.0")
-                   , lt::make_address("10.255.255.255")
-                   , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-        f.add_rule(lt::make_address("172.16.0.0")
-                   , lt::make_address("172.31.255.255")
-                   , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-        f.add_rule(lt::make_address("192.168.0.0")
-                   , lt::make_address("192.168.255.255")
-                   , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-        // link local
-        f.add_rule(lt::make_address("169.254.0.0")
-                   , lt::make_address("169.254.255.255")
-                   , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-        // loopback
-        f.add_rule(lt::make_address("127.0.0.0")
-                   , lt::make_address("127.255.255.255")
-                   , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-
-        // IPv6 may not be available on OS and the parsing
-        // would result in an exception -> abnormal program termination
-        // Affects Windows XP
-        try
-        {
-            // link local
-            f.add_rule(lt::make_address("fe80::")
-                       , lt::make_address("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
-                       , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-            // unique local addresses
-            f.add_rule(lt::make_address("fc00::")
-                       , lt::make_address("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
-                       , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-            // loopback
-            f.add_rule(lt::address_v6::loopback()
-                       , lt::address_v6::loopback()
-                       , 1 << LT::toUnderlyingType(lt::session::local_peer_class_id));
-        }
-        catch (const std::exception &) {}
-    }
-    m_nativeSession->set_peer_class_filter(f);
-
-    lt::peer_class_type_filter peerClassTypeFilter;
-    peerClassTypeFilter.add(lt::peer_class_type_filter::tcp_socket, lt::session::tcp_peer_class_id);
-    peerClassTypeFilter.add(lt::peer_class_type_filter::ssl_tcp_socket, lt::session::tcp_peer_class_id);
-    peerClassTypeFilter.add(lt::peer_class_type_filter::i2p_socket, lt::session::tcp_peer_class_id);
-    if (!isUTPRateLimited())
-    {
-        peerClassTypeFilter.disallow(lt::peer_class_type_filter::utp_socket
-            , lt::session::global_peer_class_id);
-        peerClassTypeFilter.disallow(lt::peer_class_type_filter::ssl_utp_socket
-            , lt::session::global_peer_class_id);
-    }
-    m_nativeSession->set_peer_class_type_filter(peerClassTypeFilter);
 }
 
 void SessionImpl::enableTracker(const bool enable)
@@ -3651,62 +3602,6 @@ void SessionImpl::setI2PMixedMode(const bool enabled)
         m_I2PMixedMode = enabled;
         configureDeferred();
     }
-}
-
-int SessionImpl::I2PInboundQuantity() const
-{
-    return m_I2PInboundQuantity;
-}
-
-void SessionImpl::setI2PInboundQuantity(const int value)
-{
-    if (value == m_I2PInboundQuantity)
-        return;
-
-    m_I2PInboundQuantity = value;
-    configureDeferred();
-}
-
-int SessionImpl::I2POutboundQuantity() const
-{
-    return m_I2POutboundQuantity;
-}
-
-void SessionImpl::setI2POutboundQuantity(const int value)
-{
-    if (value == m_I2POutboundQuantity)
-        return;
-
-    m_I2POutboundQuantity = value;
-    configureDeferred();
-}
-
-int SessionImpl::I2PInboundLength() const
-{
-    return m_I2PInboundLength;
-}
-
-void SessionImpl::setI2PInboundLength(const int value)
-{
-    if (value == m_I2PInboundLength)
-        return;
-
-    m_I2PInboundLength = value;
-    configureDeferred();
-}
-
-int SessionImpl::I2POutboundLength() const
-{
-    return m_I2POutboundLength;
-}
-
-void SessionImpl::setI2POutboundLength(const int value)
-{
-    if (value == m_I2POutboundLength)
-        return;
-
-    m_I2POutboundLength = value;
-    configureDeferred();
 }
 
 bool SessionImpl::isProxyPeerConnectionsEnabled() const
